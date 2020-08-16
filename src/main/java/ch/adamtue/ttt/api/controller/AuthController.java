@@ -40,7 +40,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/auth/changepassword")
-	public ChangePasswordResponse postChangePassword(@RequestBody @Valid ChangePasswordRequest userInfo)
+	public LoginResponse postChangePassword(@RequestBody @Valid ChangePasswordRequest userInfo)
 		throws InvalidCredentialsException
 	{
 		return this.userService.changeUserPassword(userInfo);

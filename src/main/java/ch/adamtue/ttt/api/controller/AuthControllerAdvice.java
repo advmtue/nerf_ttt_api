@@ -9,6 +9,7 @@ import ch.adamtue.ttt.api.dto.response.HandledErrorResponse;
 import ch.adamtue.ttt.api.exception.DefaultInternalError;
 import ch.adamtue.ttt.api.exception.FailedPasswordHashException;
 import ch.adamtue.ttt.api.exception.InvalidCredentialsException;
+import ch.adamtue.ttt.api.exception.PasswordNotChangeableException;
 import ch.adamtue.ttt.api.exception.UserAlreadyExistsException;
 
 @ControllerAdvice
@@ -46,6 +47,16 @@ public class AuthControllerAdvice {
 		HandledErrorResponse err = new HandledErrorResponse(
 				"An error occurred when handling password hashing.",
 				"ERR_PASSWORD_HASHING");
+
+		return new ResponseEntity<HandledErrorResponse>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	@ExceptionHandler({PasswordNotChangeableException.class})
+	public ResponseEntity<HandledErrorResponse> handle(PasswordNotChangeableException e) {
+		HandledErrorResponse err = new HandledErrorResponse(
+				"Password is not currently changeable.",
+				"ERR_PASSWORD_NOT_CHANGEABLE"
+				);
 
 		return new ResponseEntity<HandledErrorResponse>(err, HttpStatus.INTERNAL_SERVER_ERROR);
 	}

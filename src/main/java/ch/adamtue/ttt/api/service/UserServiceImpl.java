@@ -1,5 +1,7 @@
 package ch.adamtue.ttt.api.service;
 
+import com.auth0.jwt.exceptions.JWTCreationException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
@@ -8,11 +10,11 @@ import ch.adamtue.ttt.api.dao.DatabaseService;
 import ch.adamtue.ttt.api.dto.request.ChangePasswordRequest;
 import ch.adamtue.ttt.api.dto.request.CreateUserRequest;
 import ch.adamtue.ttt.api.dto.request.LoginRequest;
-import ch.adamtue.ttt.api.dto.response.ChangePasswordResponse;
 import ch.adamtue.ttt.api.dto.response.CreateUserResponse;
 import ch.adamtue.ttt.api.dto.response.LoginResponse;
 import ch.adamtue.ttt.api.exception.FailedPasswordHashException;
 import ch.adamtue.ttt.api.exception.InvalidCredentialsException;
+import ch.adamtue.ttt.api.exception.PasswordNotChangeableException;
 import ch.adamtue.ttt.api.exception.UserAlreadyExistsException;
 import ch.adamtue.ttt.api.model.TokenInfo;
 import ch.adamtue.ttt.api.model.UserLogin;
@@ -95,10 +97,21 @@ public class UserServiceImpl implements UserService {
 		return lr;
 	}
 
-	public ChangePasswordResponse changeUserPassword(ChangePasswordRequest userInfo) {
-		ChangePasswordResponse response = new ChangePasswordResponse();
+	public LoginResponse changeUserPassword(ChangePasswordRequest userInfo)
+		throws PasswordNotChangeableException, JWTCreationException
+	{
+		LoginResponse response = new LoginResponse();
 
-		response.setSuccess(this.dbService.changeUserPassword(userInfo));
+		// Try to change the user's password
+		this.dbService.changeUserPassword(userInfo);
+
+		// Generate a token for the response to the login is seamless
+		UserLogin ul = this.dbService.getUserLogin(userInfo.getUsername());
+		TokenInfo tokenInfo = this.dbService.getTokenInfo(ul.getUserId());
+
+		// Update response
+		response.setToken(this.tokenService.createToken(tokenInfo));
+		response.setResetPassword(false);
 
 		return response;
 	};

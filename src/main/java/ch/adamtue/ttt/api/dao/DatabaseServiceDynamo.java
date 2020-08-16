@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
@@ -13,6 +15,7 @@ import ch.adamtue.ttt.api.dto.request.CreateUserRequest;
 import ch.adamtue.ttt.api.dto.response.CreateUserResponse;
 import ch.adamtue.ttt.api.exception.DefaultInternalError;
 import ch.adamtue.ttt.api.exception.FailedPasswordHashException;
+import ch.adamtue.ttt.api.exception.PasswordNotChangeableException;
 import ch.adamtue.ttt.api.exception.UserAlreadyExistsException;
 import ch.adamtue.ttt.api.exception.UserNotExistsException;
 import ch.adamtue.ttt.api.model.TokenInfo;
@@ -37,9 +40,12 @@ public class DatabaseServiceDynamo implements DatabaseService {
 
 	DynamoDbClient dbClient;
 	String tableName;
+	Logger logger;
 
 	public DatabaseServiceDynamo() {
 		this.tableName = "ttt_testing";
+
+		this.logger = LoggerFactory.getLogger(DatabaseServiceDynamo.class);
 
 		// Create DDB connection to Sydney
 		Region region = Region.AP_SOUTHEAST_2;
@@ -47,25 +53,13 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			.region(region).build();
 	}
 
-	private void printGetItem(Map<String, AttributeValue> item) {
-		for (String key : item.keySet()) {
-			System.out.println(String.format("%s -> %s",
-						key, item.get(key).s()));
-		}
-	}
-
 	private Map<String, AttributeValue> getItem(String partKey, String sortKey)
 		throws DynamoDbException
 	{
-		HashMap<String, AttributeValue> keyToGet = new HashMap<String, AttributeValue>();
-
-		// Set the partition key
-		keyToGet.put("pk", AttributeValue.builder()
-				.s(partKey).build());
-
-		// Set the sort key
-		keyToGet.put("sk", AttributeValue.builder()
-				.s(sortKey).build());
+		HashMap<String, AttributeValue> keyToGet = new HashMap<String, AttributeValue>(
+			Map.of(
+				"pk", AttributeValue.builder().s(partKey).build(),
+				"sk", AttributeValue.builder().s(sortKey).build()));
 
 		// Create the request object
 		GetItemRequest itemRequest = GetItemRequest.builder()
@@ -81,8 +75,6 @@ public class DatabaseServiceDynamo implements DatabaseService {
 	{
 		String PK = String.format("USER#%s", userId);
 		String SK = "profile";
-
-		System.out.println(String.format("Searching for token %s", PK));
 
 		Map<String, AttributeValue> tokenInfo = this.getItem(PK, SK);
 
@@ -107,8 +99,8 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		} catch (ResourceNotFoundException e) {
 			return null;
 		} catch (DynamoDbException e) {
-			System.out.println("Error retrieving UserLogin");
-			System.out.println(e.toString());
+			this.logger.error("Error retrieving UserLogin");
+			this.logger.error(e.toString());
 			return null;
 		}
 
@@ -179,8 +171,9 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		} catch (ConditionalCheckFailedException e) {
 			throw new UserAlreadyExistsException();
 		} catch (DynamoDbException dbe) {
-			System.out.println("Caught default dynamo exception...");
-			System.out.println(dbe.toString());
+			this.logger.error("Caught default dynamo exception in createUser");
+			this.logger.error(dbe.toString());
+
 			throw new DefaultInternalError();
 		}
 
@@ -228,10 +221,10 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			this.dbClient.updateItem(updateReq);
 		} catch (ConditionalCheckFailedException e) {
 			// passwordChangeOnLogin was false
-			return false;
+			throw new PasswordNotChangeableException();
 		} catch (DynamoDbException e) {
-			System.out.println("Error updating user login");
-			System.out.println(e.toString());
+			this.logger.error("Caught default updating userLogin");
+			this.logger.error(e.toString());
 			throw new DefaultInternalError();
 		}
 
