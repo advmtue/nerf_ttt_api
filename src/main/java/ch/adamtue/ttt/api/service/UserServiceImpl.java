@@ -32,13 +32,11 @@ public class UserServiceImpl implements UserService {
 	private TokenService tokenService;
 
 	public LoginResponse getLoginMeta(LoginRequest loginInfo)
-		throws FailedPasswordHashException
+		throws FailedPasswordHashException, InvalidCredentialsException
 	{
 
-		// Build a loginResponse
 		LoginResponse lr = new LoginResponse();
 
-		// Attempt to pull some user login information
 		UserLogin ul = this.dbService.getUserLogin(loginInfo.getUsername());
 
 		/*
@@ -59,7 +57,6 @@ public class UserServiceImpl implements UserService {
 		 * Scenario #3 - User login exists:
 		 * 	passwordChangeOnLogin is true
 		 * 	defaultPassword does match
-		 * 	-- Finish
 		 */
 		if (ul.getPasswordChangeOnLogin() && ul.getPasswordResetValue().equals(loginInfo.getPassword())) {
 			lr.setResetPassword(true);
@@ -119,8 +116,13 @@ public class UserServiceImpl implements UserService {
 	public CreateUserResponse createNewUser(CreateUserRequest userInfo)
 		throws UserAlreadyExistsException
 	{
+		CreateUserResponse response = new CreateUserResponse();
+		response.setUsername(userInfo.getUsername());
+
 		// Existence checks are performed by the DB in the single round
 		// trip, so offload all responsibility to the DBService.
-		return this.dbService.createNewUser(userInfo);
+		this.dbService.createNewUser(userInfo);
+
+		return response;
 	};
 }

@@ -2,7 +2,6 @@ package ch.adamtue.ttt.api.dao;
 
 import ch.adamtue.ttt.api.dto.request.ChangePasswordRequest;
 import ch.adamtue.ttt.api.dto.request.CreateUserRequest;
-import ch.adamtue.ttt.api.dto.response.CreateUserResponse;
 import ch.adamtue.ttt.api.model.TokenInfo;
 import ch.adamtue.ttt.api.model.UserLogin;
 
@@ -18,9 +17,9 @@ public interface DatabaseService {
 	 * Create a new user
 	 * @param userInfo Username and default password
 	 **/
-	public CreateUserResponse createNewUser(CreateUserRequest userInfo);
+	public void createNewUser(CreateUserRequest userInfo);
 
-	public boolean changeUserPassword(ChangePasswordRequest userInfo);
+	public void changeUserPassword(ChangePasswordRequest userInfo);
 
 	public TokenInfo getTokenInfo(String userId);
 }
