@@ -19,9 +19,10 @@ public class SecurityConfigurer extends WebSecurityConfigurerAdapter {
 	public void configure(HttpSecurity httpSecurity) throws Exception {
 		httpSecurity
 			.csrf().disable()
-			.cors().disable() // TODO Specify
+			.cors().and()
 			.authorizeRequests()
 			.antMatchers("/auth/login").anonymous()
+			.antMatchers("/auth/changepassword").anonymous()
 			.antMatchers("/admin/**").hasAuthority("admin")
 			.anyRequest().authenticated()
 			.and().sessionManagement()

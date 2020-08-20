@@ -4,15 +4,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
 import ch.adamtue.ttt.api.dto.request.ChangePasswordRequest;
+import ch.adamtue.ttt.api.dto.request.ChangeUserRoleRequest;
 import ch.adamtue.ttt.api.dto.request.CreateUserRequest;
-import ch.adamtue.ttt.api.dto.response.CreateUserResponse;
 import ch.adamtue.ttt.api.exception.DefaultInternalError;
 import ch.adamtue.ttt.api.exception.FailedPasswordHashException;
 import ch.adamtue.ttt.api.exception.PasswordNotChangeableException;
@@ -29,18 +30,22 @@ import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedExce
 import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 @Repository("DatabaseServiceDynamo")
 public class DatabaseServiceDynamo implements DatabaseService {
 
-	@Autowired @Qualifier("PasswordServiceDefault")
+	@Autowired
 	PasswordService pwService;
 
-	DynamoDbClient dbClient;
-	String tableName;
-	Logger logger;
+	public static String createProfilePK(String userId) {
+		return String.format("USER#%s", userId);
+	}
+
+	private DynamoDbClient dbClient;
+	private DynamoDBMapper dbMapper;
+	private String tableName;
+	private Logger logger;
 
 	public DatabaseServiceDynamo() {
 		this.tableName = "ttt_testing";
@@ -113,10 +118,10 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		UserLogin ul = new UserLogin();
 		ul.setPK(login.get("pk").s());
 		ul.setSK(login.get("sk").s());
-		ul.setUserId(login.get("userId").s());
+		ul.setUserId(login.get("GSI1-PK").s());
 		ul.setPasswordChangeOnLogin(login.get("passwordChangeOnLogin").bool());
 
-		if (ul.getPasswordChangeOnLogin()) {
+		if (ul.isPasswordChangeOnLogin()) {
 			ul.setPasswordResetValue(login.get("passwordResetValue").s());
 		} else {
 			ul.setPasswordHash(login.get("passwordHash").b().asByteArray());
@@ -126,23 +131,36 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		return ul;
 	}
 
+	// TODO Find a better way to deal with these ~100 line functions
+	// DynamoDBMapper or custom marshalling of Pojo?
 	public void createNewUser(CreateUserRequest userInfo)
 		throws UserAlreadyExistsException
 	{
 		// Generate a "brand new" userID (tm)
-		// TODO Have a look at this again, I don't think enough thought was put into it
-		UUID userId = UUID.randomUUID();
+		UUID userId = UUID.randomUUID(); // TODO : Review
 
-		// Create the attributes for a login insertion
+		/*
+		 * Login : Build Request
+		 */
 		HashMap<String, AttributeValue> loginItems = new HashMap<String, AttributeValue>(
 			Map.of(
 				"pk", AttributeValue.builder().s(String.format("LOGIN#%s", userInfo.getUsername())).build(),
 				"sk", AttributeValue.builder().s("login").build(),
 				"passwordChangeOnLogin", AttributeValue.builder().bool(true).build(),
 				"passwordResetValue", AttributeValue.builder().s(userInfo.getDefaultPassword()).build(),
-				"userId", AttributeValue.builder().s(userId.toString()).build()));
+				"GSI1-SK", AttributeValue.builder().s(String.format("LOGIN#%s", userInfo.getUsername())).build(),
+				"GSI1-PK", AttributeValue.builder().s(userId.toString()).build()));
 
-		// Create the attributes for a profile insertion
+		PutItemRequest loginPr = PutItemRequest.builder()
+			.tableName(this.tableName)
+			.item(loginItems)
+			.conditionExpression("attribute_not_exists(pk)")
+			.build();
+
+
+		/*
+		 * Profile : Build Request
+		 */
 		HashMap<String, AttributeValue> profileItems = new HashMap<String, AttributeValue>(
 			Map.of(
 				"pk", AttributeValue.builder().s(String.format("USER#%s", userId.toString())).build(),
@@ -156,29 +174,46 @@ public class DatabaseServiceDynamo implements DatabaseService {
 				"accessRole", AttributeValue.builder().s("user").build(),
 				"joinDate", AttributeValue.builder().s(String.format("%s", System.currentTimeMillis())).build()));
 
-		// Build a putItem request for login
-		PutItemRequest loginPr = PutItemRequest.builder()
-			.tableName(this.tableName)
-			.item(loginItems)
-			.conditionExpression("attribute_not_exists(pk)")
-			.build();
-
-		// Build a putItem request for profile
 		PutItemRequest profilePr = PutItemRequest.builder()
 			.tableName(this.tableName)
 			.item(profileItems)
 			.conditionExpression("attribute_not_exists(pk)")
 			.build();
 
+
 		try {
-			// Do in two separate requests so we can deal with username exists
+			// Insert the new login
 			this.dbClient.putItem(loginPr);
-			this.dbClient.putItem(profilePr); // Cant have a conditionExpression
+
 		} catch (ConditionalCheckFailedException e) {
+
+			// User already exists (failed the condition)
 			throw new UserAlreadyExistsException();
+
+		} catch (DynamoDbException e) {
+
+			// Generic failure
+			this.logger.error("Error inserting new user login information for :{}", userInfo.getUsername());
+			this.logger.error(e.toString());
+
+			throw new DefaultInternalError();
+		}
+
+
+		// Pre: Login insertion completed successfully
+		try {
+			// Insert the new profile
+			this.dbClient.putItem(profilePr);
 		} catch (DynamoDbException dbe) {
+
+			// Generic failure
 			this.logger.error("Error creating new user {}", userInfo.getUsername());
 			this.logger.error(dbe.toString());
+
+			/*
+			 * TODO : Rollback/retry w exponential backoff
+			 * Admin-facing function so timeliness isn't SUPER importan
+			 */
 
 			throw new DefaultInternalError();
 		}
@@ -222,6 +257,43 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			throw new PasswordNotChangeableException();
 		} catch (DynamoDbException e) {
 			this.logger.error("Caught default updating userLogin");
+			this.logger.error(e.toString());
+			throw new DefaultInternalError();
+		}
+	}
+
+
+	public void changeUserRole(ChangeUserRoleRequest request) {
+		String pk = createProfilePK(request.getUserId());
+		String sk = "profile";
+
+		// Will be performing an update
+
+		// Expression Attributes
+		HashMap<String, AttributeValue> attrs = new HashMap<String, AttributeValue>(
+			Map.of(
+				":newRole", AttributeValue.builder().s(request.getNewRole()).build()));
+
+		// Key
+		HashMap<String, AttributeValue> key = new HashMap<String, AttributeValue>(
+			Map.of(
+				"pk", AttributeValue.builder().s(pk).build(),
+				"sk", AttributeValue.builder().s(sk).build()));
+
+		UpdateItemRequest updateRequest = UpdateItemRequest.builder()
+			.tableName(this.tableName)
+			.updateExpression("SET accessRole = :newRole")
+			.conditionExpression("attribute_exists(pk)")
+			.expressionAttributeValues(attrs)
+			.key(key)
+			.build();
+
+		try {
+			this.dbClient.updateItem(updateRequest);
+		} catch (ConditionalCheckFailedException e) {
+			throw new UserNotExistsException();
+		} catch (DynamoDbException e) {
+			this.logger.error("Dynamo error in changeUserRole");
 			this.logger.error(e.toString());
 			throw new DefaultInternalError();
 		}

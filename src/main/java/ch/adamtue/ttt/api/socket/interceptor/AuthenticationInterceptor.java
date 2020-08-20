@@ -12,14 +12,9 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 
 import ch.adamtue.ttt.api.dao.DatabaseService;
-import ch.adamtue.ttt.api.exception.DefaultInternalError;
-import ch.adamtue.ttt.api.service.TokenService;
 
 
 public class AuthenticationInterceptor implements ChannelInterceptor {
-
-	@Autowired
-	private TokenService tokenService;
 
 	@Autowired @Qualifier("DatabaseServiceDynamo")
 	private DatabaseService databaseService;

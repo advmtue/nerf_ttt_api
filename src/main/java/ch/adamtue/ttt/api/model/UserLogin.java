@@ -1,67 +1,79 @@
 package ch.adamtue.ttt.api.model;
 
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBAttribute;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBHashKey;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBIndexHashKey;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBIndexRangeKey;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBRangeKey;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBTable;
+
+@DynamoDBTable(tableName = "ttt_testing")
 public class UserLogin {
-	// DynamoDB
+
+	@DynamoDBHashKey(attributeName = "pk")
 	private String PK;
+
+	@DynamoDBIndexRangeKey(attributeName = "GSI1-SK")
+	@DynamoDBRangeKey(attributeName = "sk")
 	private String SK;
 
+	@DynamoDBIndexHashKey(attributeName = "GSI1-PK")
 	private String userId;
+
+	@DynamoDBAttribute(attributeName = "passwordHash")
 	private byte[] passwordHash;
+
+	@DynamoDBAttribute(attributeName = "passwordSalt")
 	private byte[] passwordSalt;
+
+	@DynamoDBAttribute(attributeName = "passwordChangeOnLogin")
 	private boolean passwordChangeOnLogin;
+
+	@DynamoDBAttribute(attributeName = "passwordResetValue")
 	private String passwordResetValue;
 
 	public UserLogin() {}
 
-	// GET
-	public String getPK() { return this.PK; }
-	public String getSK() { return this.SK; }
-	public String getUserId() { return this.userId; }
-	public byte[] getPasswordHash() { return this.passwordHash.clone(); }
-	public boolean getPasswordChangeOnLogin() { return this.passwordChangeOnLogin; }
-	public String getPasswordResetValue() { return this.passwordResetValue; }
-	public byte[] getPasswordSalt() { return this.passwordSalt.clone(); }
-
-	// SET
-	public void setPK(String PK) {
-		this.PK = PK;
+	// PK
+	public String getPK() { return PK; }
+	public void setPK(String pK) {
+		PK = pK;
 	}
 
-	public void setSK(String SK) {
-		this.SK = SK;
+	// SK
+	public String getSK() { return SK; }
+	public void setSK(String sK) {
+		SK = sK;
 	}
 
+	// UserId
+	public String getUserId() { return userId; }
 	public void setUserId(String userId) {
 		this.userId = userId;
 	}
 
+	// Password Hash
+	public byte[] getPasswordHash() { return passwordHash; }
 	public void setPasswordHash(byte[] passwordHash) {
-		this.passwordHash = passwordHash.clone();
+		this.passwordHash = passwordHash;
 	}
 
+	// Password Salt
+	public byte[] getPasswordSalt() { return passwordSalt; }
+	public void setPasswordSalt(byte[] passwordSalt) {
+		this.passwordSalt = passwordSalt;
+	}
+
+	// Password change on login
+	public boolean isPasswordChangeOnLogin() { return passwordChangeOnLogin; }
 	public void setPasswordChangeOnLogin(boolean passwordChangeOnLogin) {
 		this.passwordChangeOnLogin = passwordChangeOnLogin;
 	}
 
+	// Password reset value
+	public String getPasswordResetValue() { return passwordResetValue; }
 	public void setPasswordResetValue(String passwordResetValue) {
 		this.passwordResetValue = passwordResetValue;
-	}
-
-	public void setPasswordSalt(byte[] passwordSalt) {
-		this.passwordSalt = passwordSalt.clone();
-	}
-
-	public UserLogin clone() {
-		UserLogin ul = new UserLogin();
-		ul.setPK(this.PK);
-		ul.setSK(this.SK);
-		ul.setUserId(this.userId);
-		ul.setPasswordHash(this.passwordHash.clone());
-		ul.setPasswordChangeOnLogin(this.passwordChangeOnLogin);
-		ul.setPasswordResetValue(this.passwordResetValue);
-		ul.setPasswordSalt(this.passwordSalt.clone());
-
-		return ul;
 	}
 }
 

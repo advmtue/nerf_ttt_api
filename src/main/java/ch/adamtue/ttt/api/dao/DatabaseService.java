@@ -1,6 +1,7 @@
 package ch.adamtue.ttt.api.dao;
 
 import ch.adamtue.ttt.api.dto.request.ChangePasswordRequest;
+import ch.adamtue.ttt.api.dto.request.ChangeUserRoleRequest;
 import ch.adamtue.ttt.api.dto.request.CreateUserRequest;
 import ch.adamtue.ttt.api.model.TokenInfo;
 import ch.adamtue.ttt.api.model.UserLogin;
@@ -22,4 +23,6 @@ public interface DatabaseService {
 	public void changeUserPassword(ChangePasswordRequest userInfo);
 
 	public TokenInfo getTokenInfo(String userId);
+
+	public void changeUserRole(ChangeUserRoleRequest request);
 }
