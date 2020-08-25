@@ -22,9 +22,11 @@ public class SecurityConfigurer extends WebSecurityConfigurerAdapter {
 			.cors().and()
 			.authorizeRequests()
 			.antMatchers("/auth/login").anonymous()
+			.antMatchers("/socket").permitAll()
 			.antMatchers("/auth/changepassword").anonymous()
 			.antMatchers("/admin/**").hasAuthority("admin")
-			.anyRequest().authenticated()
+			.antMatchers("/lobby", "POST").hasAuthority("admin")
+			.anyRequest().denyAll()
 			.and().sessionManagement()
 			.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 

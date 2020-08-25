@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
-
+import ch.adamtue.ttt.api.dto.request.CreateLobbyRequest;
+import ch.adamtue.ttt.api.model.GameMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,10 +42,9 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		return String.format("USER#%s", userId);
 	}
 
-	private DynamoDbClient dbClient;
-	private DynamoDBMapper dbMapper;
-	private String tableName;
-	private Logger logger;
+	final private DynamoDbClient dbClient;
+	final private String tableName;
+	final private Logger logger;
 
 	public DatabaseServiceDynamo() {
 		this.tableName = "ttt_testing";
@@ -58,15 +57,18 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			.region(region).build();
 	}
 
+	/**
+	 * Perform a basic get request on a PK/SK pair.
+	 * @param partKey Partition key
+	 * @param sortKey Sort key
+	 * @return GetItem response object
+	 * @throws DynamoDbException Generic DynamoDB issue
+	 */
 	private Map<String, AttributeValue> getItem(String partKey, String sortKey)
 		throws DynamoDbException
 	{
-		HashMap<String, AttributeValue> keyToGet = new HashMap<String, AttributeValue>(
-			Map.of(
-				"pk", AttributeValue.builder().s(partKey).build(),
-				"sk", AttributeValue.builder().s(sortKey).build()));
-
-		// Create the request object
+		HashMap<String, AttributeValue> keyToGet = buildPK(partKey, sortKey);
+		
 		GetItemRequest itemRequest = GetItemRequest.builder()
 			.key(keyToGet)
 			.tableName(this.tableName)
@@ -75,6 +77,26 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		return this.dbClient.getItem(itemRequest).item();
 	}
 
+	/**
+	 * Helper function for building pk/sk pairs
+	 * @param pk Primary Hash Key
+	 * @param sk Sort Key
+	 * @return PK/SK HashMap
+	 */
+	private HashMap<String, AttributeValue> buildPK(String pk, String sk) {
+	    return new HashMap<>(
+	    		Map.of(
+	    				"pk", AttributeValue.builder().s(pk).build(),
+						"sk", AttributeValue.builder().s(sk).build()));
+	}
+
+	/**
+	 * For a given userId, pull the required TokenInfo
+	 * @param userId User UUID
+	 * @return Token information for specified user
+	 * @throws UserNotExistsException User doesn't exist
+	 */
+	@Override
 	public TokenInfo getTokenInfo(String userId)
 		throws UserNotExistsException
 	{
@@ -89,6 +111,7 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		try {
 			userTokenInfo.setUserId(userId);
 			userTokenInfo.setAccessRole(tokenInfo.get("accessRole").s());
+			userTokenInfo.setName(tokenInfo.get("GSI1-SK").s());
 		} catch (DynamoDbException e) {
 			throw new DefaultInternalError();
 		}
@@ -97,9 +120,12 @@ public class DatabaseServiceDynamo implements DatabaseService {
 	}
 
 	/**
-	 * Using a username, pull login information
-	 * @param username Username
-	 **/
+	 * For a given username, pull the login information
+	 * @param username Unique username
+	 * @return User login information
+	 * @throws DefaultInternalError Generic error for the user
+	 */
+	@Override
 	public UserLogin getUserLogin(String username)
 		throws DefaultInternalError
 	{
@@ -131,18 +157,23 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		return ul;
 	}
 
-	// TODO Find a better way to deal with these ~100 line functions
-	// DynamoDBMapper or custom marshalling of Pojo?
+	// TODO : Cleanup mega-functions
+
+	/**
+	 * Create a new user, setting their default password and passwordChangeOnLogin = true.
+	 * @param userInfo Username and default password
+	 * @throws UserAlreadyExistsException User already exists
+	 */
+	@Override
 	public void createNewUser(CreateUserRequest userInfo)
 		throws UserAlreadyExistsException
 	{
-		// Generate a "brand new" userID (tm)
 		UUID userId = UUID.randomUUID(); // TODO : Review
 
 		/*
-		 * Login : Build Request
+		 * Login : PutItemRequest
 		 */
-		HashMap<String, AttributeValue> loginItems = new HashMap<String, AttributeValue>(
+		HashMap<String, AttributeValue> loginItems = new HashMap<>(
 			Map.of(
 				"pk", AttributeValue.builder().s(String.format("LOGIN#%s", userInfo.getUsername())).build(),
 				"sk", AttributeValue.builder().s("login").build(),
@@ -157,11 +188,10 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			.conditionExpression("attribute_not_exists(pk)")
 			.build();
 
-
 		/*
-		 * Profile : Build Request
+		 * Profile : PutItemRequest
 		 */
-		HashMap<String, AttributeValue> profileItems = new HashMap<String, AttributeValue>(
+		HashMap<String, AttributeValue> profileItems = new HashMap<>(
 			Map.of(
 				"pk", AttributeValue.builder().s(String.format("USER#%s", userId.toString())).build(),
 				"sk", AttributeValue.builder().s("profile").build(),
@@ -181,17 +211,13 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			.build();
 
 
+		// Step 1: Insert the new login
 		try {
-			// Insert the new login
 			this.dbClient.putItem(loginPr);
-
 		} catch (ConditionalCheckFailedException e) {
-
 			// User already exists (failed the condition)
 			throw new UserAlreadyExistsException();
-
 		} catch (DynamoDbException e) {
-
 			// Generic failure
 			this.logger.error("Error inserting new user login information for :{}", userInfo.getUsername());
 			this.logger.error(e.toString());
@@ -200,25 +226,26 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		}
 
 
-		// Pre: Login insertion completed successfully
+		// Step 2: Insert the new profile
 		try {
 			// Insert the new profile
 			this.dbClient.putItem(profilePr);
 		} catch (DynamoDbException dbe) {
-
 			// Generic failure
 			this.logger.error("Error creating new user {}", userInfo.getUsername());
 			this.logger.error(dbe.toString());
 
-			/*
-			 * TODO : Rollback/retry w exponential backoff
-			 * Admin-facing function so timeliness isn't SUPER importan
-			 */
-
+			// TODO : Rollback/retry w exponential backoff
 			throw new DefaultInternalError();
 		}
 	}
 
+	/**
+	 * Update specified user's password. Sets passwordChangeOnLogin = false
+	 * @param userInfo User information
+	 * @throws FailedPasswordHashException Generic hashing/crypto error
+	 */
+	@Override
 	public void changeUserPassword(ChangePasswordRequest userInfo)
 		throws FailedPasswordHashException
 	{
@@ -227,13 +254,10 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		byte[] newPwHash = this.pwService.createPasswordHash(userInfo.getNewPassword(), salt);
 
 		// Create the key mapping
-		HashMap<String, AttributeValue> key = new HashMap<String, AttributeValue>(
-			Map.of(
-				"pk", AttributeValue.builder().s(String.format("LOGIN#%s", userInfo.getUsername())).build(),
-				"sk", AttributeValue.builder().s("login").build()));
+		HashMap<String, AttributeValue> key = buildPK(String.format("LOGIN#%s", userInfo.getUsername()), "login");
 
 		// Create expression attribute values
-		HashMap<String, AttributeValue> attrs = new HashMap<String, AttributeValue>(
+		HashMap<String, AttributeValue> attrs = new HashMap<>(
 			Map.of(
 				":pwHash", AttributeValue.builder().b(SdkBytes.fromByteArray(newPwHash)).build(),
 				":false", AttributeValue.builder().bool(false).build(),
@@ -249,7 +273,6 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			.key(key)
 			.build();
 
-
 		try {
 			this.dbClient.updateItem(updateReq);
 		} catch (ConditionalCheckFailedException e) {
@@ -262,23 +285,22 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		}
 	}
 
-
+	/**
+	 * Change the role of specified user
+	 * @param request User role request
+	 */
+	@Override
 	public void changeUserRole(ChangeUserRoleRequest request) {
 		String pk = createProfilePK(request.getUserId());
 		String sk = "profile";
 
-		// Will be performing an update
-
 		// Expression Attributes
-		HashMap<String, AttributeValue> attrs = new HashMap<String, AttributeValue>(
+		HashMap<String, AttributeValue> attrs = new HashMap<>(
 			Map.of(
 				":newRole", AttributeValue.builder().s(request.getNewRole()).build()));
 
 		// Key
-		HashMap<String, AttributeValue> key = new HashMap<String, AttributeValue>(
-			Map.of(
-				"pk", AttributeValue.builder().s(pk).build(),
-				"sk", AttributeValue.builder().s(sk).build()));
+		HashMap<String, AttributeValue> key = buildPK(pk, sk);
 
 		UpdateItemRequest updateRequest = UpdateItemRequest.builder()
 			.tableName(this.tableName)
@@ -297,5 +319,70 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			this.logger.error(e.toString());
 			throw new DefaultInternalError();
 		}
+	}
+
+	/**
+	 * Create a new lobby owned by ownerInfo.userId
+	 * @param ownerInfo Owner information (UUID, name)
+	 * @param lobbyInfo Create lobby request information
+	 * @return Lobby UUID
+	 */
+	@Override
+	public GameMetadata createNewLobby(TokenInfo ownerInfo, CreateLobbyRequest lobbyInfo) {
+	    /*
+	    	Required fields:
+	    		[string] Game#GameID (pk)
+	    		[string] metadata (sk)
+	    		[string] Owner ID
+	    		[string] Owner Name
+	    		[string] Lobby Name
+	    		[string] Date Created (GSI1-SK)
+	    		[string] Status (GSI1-PK)
+	    		[number] Player Count
+	     */
+
+		// Generate "new" game UUID -- TODO : Research
+		String gameId = UUID.randomUUID().toString();
+
+		// Build GameMetadata
+		GameMetadata gameInfo = new GameMetadata();
+		gameInfo.setGameId(gameId);
+		gameInfo.setOwnerId(ownerInfo.getUserId());
+		gameInfo.setOwnerName(ownerInfo.getName());
+		gameInfo.setName(lobbyInfo.getName());
+		gameInfo.setDateCreated(String.format("%s", System.currentTimeMillis()));
+		gameInfo.setStatus("LOBBY");
+		gameInfo.setPlayerCount(0);
+
+		// Build PutItemRequest fields
+		HashMap<String, AttributeValue> items = new HashMap<>(
+				Map.of(
+						"pk", AttributeValue.builder().s(gameInfo.getPk()).build(),
+						"sk", AttributeValue.builder().s(gameInfo.getSk()).build(),
+						"ownerId", AttributeValue.builder().s(gameInfo.getOwnerId()).build(),
+						"ownerName", AttributeValue.builder().s(gameInfo.getOwnerName()).build(),
+						"lobbyName", AttributeValue.builder().s(gameInfo.getName()).build(),
+						"GSI1-SK", AttributeValue.builder().s(gameInfo.getDateCreated()).build(),
+						"GSI1-PK", AttributeValue.builder().s(gameInfo.getStatus()).build(),
+						"playerCount", AttributeValue.builder().n(String.format("%s", gameInfo.getPlayerCount())).build()
+				)
+		);
+
+		// Build the put request
+		PutItemRequest pr = PutItemRequest.builder()
+				.tableName(this.tableName)
+				.conditionExpression("attribute_not_exists(pk)")
+				.item(items)
+				.build();
+
+		// Execute the request
+		try {
+			this.dbClient.putItem(pr);
+		} catch (Exception e) {
+			e.printStackTrace();
+		    throw new DefaultInternalError();
+		}
+		
+		return gameInfo;
 	}
 }

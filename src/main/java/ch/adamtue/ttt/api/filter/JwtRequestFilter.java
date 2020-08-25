@@ -27,13 +27,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
 	@Autowired
 	private TokenService tokenService;
+	private final Logger logger = LoggerFactory.getLogger(JwtRequestFilter.class);
 
-	private Logger logger;
-
-	public JwtRequestFilter() {
-		logger = LoggerFactory.getLogger(JwtRequestFilter.class);
-	}
-
+	public JwtRequestFilter() { }
 
 	/**
 	 * Run a filter each time a request is made.
@@ -46,48 +42,38 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 		final String authHeader = request.getHeader("Authorization");
 
 		if (authHeader == null) {
-			logger.warn("No auth header was specified for request.");
+			logger.warn("Request ignored: No auth header");
 			chain.doFilter(request,response);
 			return;
 		}
 
 		// No header passed or security context has been set
 		if (SecurityContextHolder.getContext().getAuthentication() != null ) {
-			logger.warn("Security context has already been established for request");
+			logger.warn("Request ignored: Security context already exists");
 			chain.doFilter(request, response);
 			return;
 		}
 
 		// No bearer pattern
 		if (!authHeader.startsWith("Bearer ")) {
-			logger.warn("Request dropped for not following Bearer pattern");
+			logger.warn("Request ignored: Bearer pattern not present");
 			chain.doFilter(request, response);
 			return;
 		}
 
-		// Remove "Bearer "
+		// Remove "Bearer " prefix
 		final String token = authHeader.substring(7);
 
-		// Verify the token internall
+		// Verify the token internally
 		try {
 			// Pull token information
 			TokenInfo tokenInfo = this.tokenService.verifyToken(token);
-
-			GrantedAuthority authority = new SimpleGrantedAuthority(tokenInfo.getAccessRole());
-			ArrayList<GrantedAuthority> authorities = new ArrayList<GrantedAuthority>( List.of(authority) );
-
-			// Create some authentication
-			UsernamePasswordAuthenticationToken userToken = new UsernamePasswordAuthenticationToken(
-					tokenInfo.getUserId(), null, // Username, Credentials (unused)
-					authorities);
+			UsernamePasswordAuthenticationToken userToken = this.tokenService.createPrincipal(tokenInfo);
 
 			// Assign the security context
-			logger.info("Security Context :{}   :{}", tokenInfo.getUserId(), tokenInfo.getAccessRole());
 			SecurityContextHolder.getContext().setAuthentication(userToken);
 		} catch (Exception e) {
-			logger.error("Some error occurred when assigning security context...");
-			logger.error(e.toString());
-			return;
+		    e.printStackTrace();
 		}
 
 		// Continue the chain

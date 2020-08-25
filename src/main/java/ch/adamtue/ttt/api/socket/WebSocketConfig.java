@@ -1,6 +1,7 @@
 package ch.adamtue.ttt.api.socket;
 
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -13,6 +14,7 @@ import ch.adamtue.ttt.api.socket.interceptor.AuthenticationInterceptor;
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
 	/**
 	 * Add endpoints for websocket connections
 	 **/
@@ -31,9 +33,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		config.enableSimpleBroker("/topic", "/queue");
 	}
 
+	/**
+	 * Create new AuthenticationIncerceptor as a bean so spring will manage its lifecycle.
+	 * Allows for IoC
+	 */
+	@Bean
+	public AuthenticationInterceptor createInterceptor() {
+		return new AuthenticationInterceptor();
+	}
+
+	/**
+	 * Configure interceptors for client inbound messages
+	 */
 	@Override
 	public void configureClientInboundChannel(ChannelRegistration registration) {
-		registration.interceptors(new AuthenticationInterceptor());
+		registration.interceptors(createInterceptor());
 	}
 
 }

@@ -28,7 +28,7 @@ public class AuthController {
 	 **/
 	@CrossOrigin
 	@PostMapping("/auth/login")
-	public LoginResponse postLogin(@AuthenticationPrincipal Principal principal, @RequestBody @Valid LoginRequest loginRequest)
+	public LoginResponse postLogin(@RequestBody @Valid LoginRequest loginRequest)
 		throws InvalidCredentialsException
 	{
 		return this.userService.getLoginMeta(loginRequest);
@@ -38,7 +38,7 @@ public class AuthController {
 	 * User requests to change their password.
 	 **/
 	@PostMapping("/auth/changepassword")
-	public LoginResponse postChangePassword(@RequestBody @Valid ChangePasswordRequest userInfo)
+	public LoginResponse postChangePassword(@AuthenticationPrincipal Principal user, @RequestBody @Valid ChangePasswordRequest userInfo)
 		throws InvalidCredentialsException
 	{
 		return this.userService.changeUserPassword(userInfo);
