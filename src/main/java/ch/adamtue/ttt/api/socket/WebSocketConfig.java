@@ -34,7 +34,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	}
 
 	/**
-	 * Create new AuthenticationIncerceptor as a bean so spring will manage its lifecycle.
+	 * Create new AuthenticationInterceptor as a bean so spring will manage its lifecycle.
 	 * Allows for IoC
 	 */
 	@Bean

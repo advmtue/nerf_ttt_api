@@ -1,16 +1,17 @@
 package ch.adamtue.ttt.api.dto.request;
 
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 
 import org.springframework.lang.NonNull;
 
 public class LoginRequest {
 	@NotBlank
-	@NonNull
+	@NotNull
 	private String username;
 
 	@NotBlank
-	@NonNull
+	@NotNull
 	private String password;
 
 	public LoginRequest() {}

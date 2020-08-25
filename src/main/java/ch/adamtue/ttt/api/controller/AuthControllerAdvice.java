@@ -21,7 +21,7 @@ public class AuthControllerAdvice {
 				"Invalid Credentials",
 				"ERR_INVALID_CREDENTIALS");
 
-		return new ResponseEntity<HandledErrorResponse>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 
 	@ExceptionHandler({UserAlreadyExistsException.class})
@@ -30,7 +30,7 @@ public class AuthControllerAdvice {
 				"A user with matching username already exists.",
 				"ERR_USER_EXISTS");
 
-		return new ResponseEntity<HandledErrorResponse>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 
 	@ExceptionHandler({DefaultInternalError.class})
@@ -39,7 +39,7 @@ public class AuthControllerAdvice {
 				"An unexpected error occurred. This is unusual.",
 				"ERR_INTERNAL_UNEXPECTED");
 
-		return new ResponseEntity<HandledErrorResponse>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 
 	@ExceptionHandler({FailedPasswordHashException.class})
@@ -48,7 +48,7 @@ public class AuthControllerAdvice {
 				"An error occurred when handling password hashing.",
 				"ERR_PASSWORD_HASHING");
 
-		return new ResponseEntity<HandledErrorResponse>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 
 	@ExceptionHandler({PasswordNotChangeableException.class})
@@ -58,6 +58,6 @@ public class AuthControllerAdvice {
 				"ERR_PASSWORD_NOT_CHANGEABLE"
 				);
 
-		return new ResponseEntity<HandledErrorResponse>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 }

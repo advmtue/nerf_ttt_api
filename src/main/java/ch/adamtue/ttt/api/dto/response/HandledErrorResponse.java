@@ -1,8 +1,8 @@
 package ch.adamtue.ttt.api.dto.response;
 
 public class HandledErrorResponse {
-	public String message;
-	public String code;
+	public final String message;
+	public final String code;
 
 	public HandledErrorResponse(String message, String code) {
 		this.message = message;

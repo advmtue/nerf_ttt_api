@@ -78,7 +78,7 @@ public class UserService {
 		/*
 		 * Scenario #5 - User needs to reset their password
 		 */
-		if (ul.isPasswordChangeOnLogin() == true) {
+		if (ul.isPasswordChangeOnLogin()) {
 			lr.setResetPassword(true);
 			return lr;
 		}
@@ -113,7 +113,7 @@ public class UserService {
 		response.setResetPassword(false);
 
 		return response;
-	};
+	}
 
 	public CreateUserResponse createNewUser(CreateUserRequest userInfo)
 		throws UserAlreadyExistsException
@@ -126,7 +126,7 @@ public class UserService {
 		this.dbService.createNewUser(userInfo);
 
 		return response;
-	};
+	}
 
 	public ChangeUserRoleResponse changeUserRole(ChangeUserRoleRequest request)
 	{

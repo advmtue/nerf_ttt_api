@@ -19,8 +19,8 @@ import java.util.List;
 @Service
 public class TokenService {
 
-	Algorithm algorithm;
-	JWTVerifier verifier;
+	final Algorithm algorithm;
+	final JWTVerifier verifier;
 
 	public TokenService() {
 		this.algorithm = Algorithm.HMAC256("secretChangeMeLater");

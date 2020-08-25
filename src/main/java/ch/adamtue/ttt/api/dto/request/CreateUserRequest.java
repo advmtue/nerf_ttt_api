@@ -1,20 +1,19 @@
 package ch.adamtue.ttt.api.dto.request;
 
 import javax.validation.constraints.NotBlank;
-
-import org.springframework.lang.NonNull;
+import javax.validation.constraints.NotNull;
 
 public class CreateUserRequest {
 	@NotBlank
-	@NonNull
+	@NotNull
 	private String username;
 
 	@NotBlank
-	@NonNull
+	@NotNull
 	private String defaultPassword;
 
 	@NotBlank
-	@NonNull
+	@NotNull
 	private String displayName;
 
 	// Get

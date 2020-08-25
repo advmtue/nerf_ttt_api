@@ -14,32 +14,32 @@ public interface DatabaseService {
 	 * Assumes only the username is indexed.
 	 * @param username Unique username
 	 **/
-	public UserLogin getUserLogin(String username);
+	UserLogin getUserLogin(String username);
 
 	/**
 	 * Create a new user
 	 * @param userInfo Username and default password
 	 **/
-	public void createNewUser(CreateUserRequest userInfo);
+	void createNewUser(CreateUserRequest userInfo);
 
 	/**
 	 * Update a user password. Set passwordChangeOnLogin = false as a side effect.
-	 * @param userInfo
+	 * @param userInfo Information for use in update
 	 */
-	public void changeUserPassword(ChangePasswordRequest userInfo);
+	void changeUserPassword(ChangePasswordRequest userInfo);
 
 	/**
 	 * For a given userId, pull their token information
 	 * @param userId User UUID
 	 * @return Token information object
 	 */
-	public TokenInfo getTokenInfo(String userId);
+	TokenInfo getTokenInfo(String userId);
 
 	/**
 	 * Change the access role of a user
 	 * @param request User role request information
 	 */
-	public void changeUserRole(ChangeUserRoleRequest request);
+	void changeUserRole(ChangeUserRoleRequest request);
 
 	/**
 	 * Create a new lobby
@@ -47,5 +47,5 @@ public interface DatabaseService {
 	 * @param lobbyInfo Name of the lobby
 	 * @return Game metadata
 	 */
-	public GameMetadata createNewLobby(TokenInfo ownerInfo, CreateLobbyRequest lobbyInfo);
+	GameMetadata createNewLobby(TokenInfo ownerInfo, CreateLobbyRequest lobbyInfo);
 }
