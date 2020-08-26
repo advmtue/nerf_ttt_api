@@ -26,6 +26,7 @@ public class SecurityConfigurer extends WebSecurityConfigurerAdapter {
 			.antMatchers("/auth/changepassword").anonymous()
 			.antMatchers("/admin/**").hasAuthority("admin")
 			.antMatchers("/lobby", "POST").hasAuthority("admin")
+			.antMatchers("/lobby", "GET").authenticated()
 			.anyRequest().denyAll()
 			.and().sessionManagement()
 			.sessionCreationPolicy(SessionCreationPolicy.STATELESS);

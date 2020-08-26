@@ -2,7 +2,10 @@ package ch.adamtue.ttt.api.controller;
 
 import javax.validation.Valid;
 
+import ch.adamtue.ttt.api.dao.DatabaseService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,6 +25,12 @@ public class AdminController {
 
 	@Autowired
 	private UserService userService;
+	
+	@Autowired @Qualifier("DatabaseServiceDynamo")
+	private DatabaseService databaseService;
+	
+	@Autowired
+	private SimpMessagingTemplate messagingTemplate;
 
 	/**
 	 * Add a new user.
@@ -41,5 +50,13 @@ public class AdminController {
 	public ChangeUserRoleResponse changeUserRole(@RequestBody @Valid ChangeUserRoleRequest request) {
 		return this.userService.changeUserRole(request);
 	}
+	
+	@PostMapping("/lobby/close")
+	public String adminCloseLobby(@RequestBody String lobbyId) {
+	    this.databaseService.closeLobby(lobbyId);
+	    
+	    this.messagingTemplate.convertAndSend("/topic/lobbies/closed", lobbyId);
 
+	    return lobbyId;
+	}
 }

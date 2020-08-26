@@ -8,6 +8,8 @@ import ch.adamtue.ttt.api.model.GameMetadata;
 import ch.adamtue.ttt.api.model.TokenInfo;
 import ch.adamtue.ttt.api.model.UserLogin;
 
+import java.util.List;
+
 public interface DatabaseService {
 	/**
 	 * Pull login information for a given username.
@@ -48,4 +50,16 @@ public interface DatabaseService {
 	 * @return Game metadata
 	 */
 	GameMetadata createNewLobby(TokenInfo ownerInfo, CreateLobbyRequest lobbyInfo);
+
+	/**
+	 * Get the list of active lobbies
+	 * @return Public lobby listing
+	 */
+	List<GameMetadata> getLobbyList();
+
+	/**
+	 * Close a lobby (if it is open)
+	 * @param lobbyId Lobby ID
+	 */
+	void closeLobby(String lobbyId);
 }

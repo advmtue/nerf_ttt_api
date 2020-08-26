@@ -3,8 +3,6 @@ package ch.adamtue.ttt.api.dto.request;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
-import org.springframework.lang.NonNull;
-
 public class LoginRequest {
 	@NotBlank
 	@NotNull

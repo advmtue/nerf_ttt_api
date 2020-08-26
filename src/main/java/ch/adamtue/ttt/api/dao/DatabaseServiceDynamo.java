@@ -1,8 +1,6 @@
 package ch.adamtue.ttt.api.dao;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import ch.adamtue.ttt.api.dto.request.CreateLobbyRequest;
 import ch.adamtue.ttt.api.model.GameMetadata;
@@ -25,12 +23,7 @@ import ch.adamtue.ttt.api.service.PasswordService;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
-import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.*;
 
 @Repository("DatabaseServiceDynamo")
 public class DatabaseServiceDynamo implements DatabaseService {
@@ -384,5 +377,85 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		}
 		
 		return gameInfo;
+	}
+	
+	public List<GameMetadata> getLobbyList() {
+		HashMap<String, AttributeValue> attrV = new HashMap<>(Map.of(
+				":status", AttributeValue.builder().s("LOBBY").build()
+		));
+		
+		HashMap<String, String> attrN = new HashMap<>(Map.of(
+				"#pk", "GSI1-PK"
+		));
+		
+		QueryRequest qr = QueryRequest.builder()
+				.indexName("GSI1-UserList-LobbyList")
+				.tableName("ttt_testing")
+				.keyConditionExpression("#pk = :status")
+				.expressionAttributeValues(attrV)
+                .expressionAttributeNames(attrN)
+				.build();
+
+		QueryResponse response;
+		try {
+			response = this.dbClient.query(qr);
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new DefaultInternalError();
+		}
+
+		// Iterate the response items and marshall them into a GameMetadata object, appending to the list
+		ArrayList<GameMetadata> activeLobbies = new ArrayList<>();
+		
+		for (Map<String, AttributeValue> item : response.items()) {
+			GameMetadata gm = new GameMetadata();
+			gm.setOwnerName(item.get("ownerName").s());
+			gm.setOwnerId(item.get("ownerId").s());
+			gm.setGameId(item.get("pk").s().split("#")[1]); // TODO : Cleanup
+			gm.setDateCreated(item.get("GSI1-SK").s());
+			gm.setStatus(item.get("GSI1-PK").s());
+			gm.setName(item.get("lobbyName").s());
+			gm.setPlayerCount(Long.parseLong(item.get("playerCount").n()));
+			
+			activeLobbies.add(gm);
+		}
+
+		// Debug
+        return activeLobbies;
+	}
+	
+	public void closeLobby(String lobbyId) {
+		// Expression Attribute Values
+		HashMap<String, AttributeValue> attrV = new HashMap<>(Map.of(
+				":closed", AttributeValue.builder().s("CLOSED").build(),
+				":lobby", AttributeValue.builder().s("LOBBY").build()
+		));
+
+		HashMap<String, String> attrN = new HashMap<>(Map.of(
+				"#status", "GSI1-PK"
+		));
+
+		HashMap<String, AttributeValue> keys = new HashMap<>(Map.of(
+				"pk", AttributeValue.builder().s(String.format("GAME#%s", lobbyId)).build(),
+				"sk", AttributeValue.builder().s("metadata").build()
+		));
+		
+		// Update request
+		UpdateItemRequest updateRequest = UpdateItemRequest.builder()
+				.key(keys)
+				.tableName(this.tableName)
+				.updateExpression("SET #status = :closed")
+				.expressionAttributeValues(attrV)
+				.expressionAttributeNames(attrN)
+				.conditionExpression("#status = :lobby")
+				.build();
+		
+		// Perform update request
+		try {
+			this.dbClient.updateItem(updateRequest);
+		} catch (Exception e) { // TODO Throw better errors, and check ConditionCheckFailed
+		    e.printStackTrace();
+		    throw new DefaultInternalError();
+		}
 	}
 }
