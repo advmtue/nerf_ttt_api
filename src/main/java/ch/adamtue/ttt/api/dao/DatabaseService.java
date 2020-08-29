@@ -5,8 +5,10 @@ import ch.adamtue.ttt.api.dto.request.ChangeUserRoleRequest;
 import ch.adamtue.ttt.api.dto.request.CreateLobbyRequest;
 import ch.adamtue.ttt.api.dto.request.CreateUserRequest;
 import ch.adamtue.ttt.api.model.GameMetadata;
+import ch.adamtue.ttt.api.model.LobbyPlayer;
 import ch.adamtue.ttt.api.model.TokenInfo;
 import ch.adamtue.ttt.api.model.UserLogin;
+import com.sun.el.parser.Token;
 
 import java.util.List;
 
@@ -62,4 +64,46 @@ public interface DatabaseService {
 	 * @param lobbyId Lobby ID
 	 */
 	void closeLobby(String lobbyId);
+
+	/**
+	 * Pull information for a given lobby
+	 * @param lobbyId Lobby UUID
+	 * @return Lobby information (GameMetadata)
+	 */
+	GameMetadata getLobby(String lobbyId);
+
+	/**
+	 * Pull players who are participating in a lobby
+	 * @param lobbyId Lobby UUID
+	 * @return Player list
+	 */
+	List<LobbyPlayer> getLobbyPlayers(String lobbyId);
+
+	/**
+	 * Player joins a lobby
+	 * @param playerInfo Player information
+	 * @param lobbyId Lobby UUID
+	 */
+	void playerJoinLobby(TokenInfo playerInfo, String lobbyId);
+	
+	/**
+	 * Player leaves a lobby
+	 * @param playerInfo Player information
+	 * @param lobbyId Lobby UUID
+	 */
+	void playerLeaveLobby(TokenInfo playerInfo, String lobbyId);
+
+	/**
+	 * Player sets their status to ready
+	 * @param playerInfo Player information
+	 * @param lobbyId Lobby UUID
+	 */
+	void playerSetReady(TokenInfo playerInfo, String lobbyId);
+
+	/**
+	 * Player sets their status to unready
+	 * @param playerInfo Player information
+	 * @param lobbyId Lobby UUID
+	 */
+	void playerSetUnready(TokenInfo playerInfo, String lobbyId);
 }

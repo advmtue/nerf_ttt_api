@@ -19,6 +19,9 @@ import ch.adamtue.ttt.api.dto.response.CreateUserResponse;
 import ch.adamtue.ttt.api.exception.UserAlreadyExistsException;
 import ch.adamtue.ttt.api.service.UserService;
 
+import java.util.Collections;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
@@ -52,11 +55,21 @@ public class AdminController {
 	}
 	
 	@PostMapping("/lobby/close")
-	public String adminCloseLobby(@RequestBody String lobbyId) {
+	public Map<String, String> adminCloseLobby(@RequestBody String lobbyId) {
 	    this.databaseService.closeLobby(lobbyId);
-	    
-	    this.messagingTemplate.convertAndSend("/topic/lobbies/closed", lobbyId);
 
-	    return lobbyId;
+	    // Response object
+	    Map<String, String> lobbyIdInfo = Collections.singletonMap("lobbyId", lobbyId);
+
+	    // Send to lobby list
+	    this.messagingTemplate.convertAndSend("/topic/lobbies/closed", lobbyIdInfo);
+
+	    // Send to individual lobby
+	    this.messagingTemplate.convertAndSend(
+	    		String.format("/topic/lobby/%s/closed", lobbyId),
+				lobbyIdInfo
+		);
+
+	    return lobbyIdInfo;
 	}
 }

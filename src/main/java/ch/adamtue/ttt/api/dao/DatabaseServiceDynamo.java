@@ -4,6 +4,7 @@ import java.util.*;
 
 import ch.adamtue.ttt.api.dto.request.CreateLobbyRequest;
 import ch.adamtue.ttt.api.model.GameMetadata;
+import ch.adamtue.ttt.api.model.LobbyPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,8 @@ import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
+
+import javax.validation.groups.Default;
 
 @Repository("DatabaseServiceDynamo")
 public class DatabaseServiceDynamo implements DatabaseService {
@@ -404,20 +407,13 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			throw new DefaultInternalError();
 		}
 
+		// TODO Pull information for lobby players :o
+
 		// Iterate the response items and marshall them into a GameMetadata object, appending to the list
 		ArrayList<GameMetadata> activeLobbies = new ArrayList<>();
 		
 		for (Map<String, AttributeValue> item : response.items()) {
-			GameMetadata gm = new GameMetadata();
-			gm.setOwnerName(item.get("ownerName").s());
-			gm.setOwnerId(item.get("ownerId").s());
-			gm.setGameId(item.get("pk").s().split("#")[1]); // TODO : Cleanup
-			gm.setDateCreated(item.get("GSI1-SK").s());
-			gm.setStatus(item.get("GSI1-PK").s());
-			gm.setName(item.get("lobbyName").s());
-			gm.setPlayerCount(Long.parseLong(item.get("playerCount").n()));
-			
-			activeLobbies.add(gm);
+		    activeLobbies.add(GameMetadata.createFromQuery(item));
 		}
 
 		// Debug
@@ -457,5 +453,166 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		    e.printStackTrace();
 		    throw new DefaultInternalError();
 		}
+	}
+	
+	public GameMetadata getLobby(String lobbyId) {
+		Map<String, AttributeValue> item = this.getItem(String.format("GAME#%s", lobbyId), "metadata");
+		
+		// No lobby found
+		if (item.size() == 0) return null;
+		
+		return GameMetadata.createFromQuery(item);
+	}
+	
+	public List<LobbyPlayer> getLobbyPlayers(String lobbyId) {
+		// Attribute values
+		HashMap<String, AttributeValue> attrV = new HashMap<>(Map.of(
+				":game", AttributeValue.builder().s(String.format("GAME#%s", lobbyId)).build(),
+				":sortkey", AttributeValue.builder().s("lobby#player#").build()
+		));
+
+		// Attribute names
+		HashMap<String, String> attrN = new HashMap<>(Map.of(
+				"#pk", "pk",
+				"#sk", "sk"
+		));
+
+				
+	    QueryRequest query = QueryRequest.builder()
+				.tableName(this.tableName)
+				.keyConditionExpression("#pk = :game AND begins_with(#sk, :sortkey)")
+				.expressionAttributeNames(attrN)
+				.expressionAttributeValues(attrV)
+                .build();
+
+	    QueryResponse response;
+	    try {
+	    	response = this.dbClient.query(query);
+		} catch (Exception e) {
+	    	throw new DefaultInternalError();
+		}
+	    
+	    // Map response to lobbyplayer
+        ArrayList<LobbyPlayer> players = new ArrayList<>();
+	    
+	    for (Map<String, AttributeValue> item : response.items()) {
+	    	players.add(LobbyPlayer.createFromQuery(item));
+		}
+		
+	    return players;
+	}
+
+	/**
+	 * 
+	 * @param playerInfo Player information
+	 * @param lobbyId Lobby UUID
+	 */
+	public void playerJoinLobby(TokenInfo playerInfo, String lobbyId) {
+		// TODO check game status
+
+		// PutRequest assuming player is not already in lobby
+		HashMap<String, AttributeValue> attr = new HashMap<>(Map.of(
+				"pk", AttributeValue.builder().s(String.format("GAME#%s", lobbyId)).build(),
+				"sk", AttributeValue.builder().s(String.format("lobby#player#%s", playerInfo.getUserId())).build(),
+				"displayName", AttributeValue.builder().s(playerInfo.getName()).build(),
+				"isReady", AttributeValue.builder().bool(false).build()
+		));
+		
+		PutItemRequest request = PutItemRequest.builder()
+				.tableName(this.tableName)
+                .item(attr)
+				.build();
+
+		try {
+			this.dbClient.putItem(request);
+		} catch (Exception e) {
+			throw new DefaultInternalError();
+		}
+		
+		return;
+	}
+
+	/**
+	 * @param playerInfo Player information
+	 * @param lobbyId Lobby UUID
+	 */
+	public void playerLeaveLobby(TokenInfo playerInfo, String lobbyId) {
+		// Todo check game status 
+	    Map<String, AttributeValue> key = buildPK(
+	    		String.format("GAME#%s", lobbyId),
+				String.format("lobby#player#%s", playerInfo.getUserId())
+		);
+	    
+		// DeleteRequest
+		DeleteItemRequest request = DeleteItemRequest.builder()
+				.tableName(this.tableName)
+				.key(key)
+				.build();
+		
+		try {
+			this.dbClient.deleteItem(request);
+		} catch (Exception e) {
+			throw new DefaultInternalError();
+		}
+		
+		return;
+	}
+	
+	public void playerSetReady(TokenInfo playerInfo, String lobbyId) {
+		// PK
+	    Map<String, AttributeValue> key = buildPK(
+	    		String.format("GAME#%s", lobbyId),
+				String.format("lobby#player#%s", playerInfo.getUserId())
+		);
+
+	    // Attribute values
+	    HashMap<String, AttributeValue> attrV = new HashMap<>(Map.of(
+	    		":true", AttributeValue.builder().bool(true).build()
+		));
+	    
+		// Update request with a PK constraint existence check
+		UpdateItemRequest request = UpdateItemRequest.builder()
+                .tableName(this.tableName)
+				.key(key)
+				.updateExpression("SET isReady = :true")
+				.expressionAttributeValues(attrV)
+				.build();
+		
+		try {
+			this.dbClient.updateItem(request);
+		} catch (Exception e) {
+			throw new DefaultInternalError();
+		}
+		
+		return;
+	}
+	
+	public void playerSetUnready(TokenInfo playerInfo, String lobbyId) {
+		// PK
+		Map<String, AttributeValue> key = buildPK(
+				String.format("GAME#%s", lobbyId),
+				String.format("lobby#player#%s", playerInfo.getUserId())
+		);
+
+		// Attribute values
+		HashMap<String, AttributeValue> attrV = new HashMap<>(Map.of(
+				":false", AttributeValue.builder().bool(false).build()
+		));
+
+		// Update request with a PK constraint existence check
+		UpdateItemRequest request = UpdateItemRequest.builder()
+				.tableName(this.tableName)
+				.key(key)
+				.updateExpression("SET isReady = :false")
+				.expressionAttributeValues(attrV)
+				.build();
+
+		try {
+			this.dbClient.updateItem(request);
+		} catch (Exception e) {
+			throw new DefaultInternalError();
+		}
+
+		return;
 	}
 }

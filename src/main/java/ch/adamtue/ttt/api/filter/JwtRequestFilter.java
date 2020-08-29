@@ -38,7 +38,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 		final String authHeader = request.getHeader("Authorization");
 
 		if (authHeader == null) {
-			logger.warn("Request ignored: No auth header");
 			chain.doFilter(request,response);
 			return;
 		}

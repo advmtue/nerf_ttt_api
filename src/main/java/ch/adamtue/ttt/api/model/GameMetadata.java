@@ -2,6 +2,10 @@ package ch.adamtue.ttt.api.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GameMetadata {
@@ -77,5 +81,24 @@ public class GameMetadata {
     public String getOwnerId() { return ownerId; }
     public void setOwnerId(String ownerId) {
         this.ownerId = ownerId;
+    }
+    
+    public static GameMetadata createFromQuery(Map<String, AttributeValue> item) {
+        // Always exist
+        GameMetadata gm = new GameMetadata();
+        gm.setOwnerName(item.get("ownerName").s());
+        gm.setOwnerId(item.get("ownerId").s());
+        gm.setGameId(item.get("pk").s().split("#")[1]); // TODO : Cleanup
+        gm.setDateCreated(item.get("GSI1-SK").s());
+        gm.setStatus(item.get("GSI1-PK").s());
+        gm.setName(item.get("lobbyName").s());
+        gm.setPlayerCount(Long.parseLong(item.get("playerCount").n()));
+
+        // Optional post-lobby phase
+        gm.setDateLaunched(item.get("dateLaunched") == null ? null : item.get("dateLaunched").s());
+        gm.setDateStarted(item.get("dateStarted") == null ? null : item.get("dateStarted").s());
+        gm.setDateEnded(item.get("dateEnded") == null ? null : item.get("dateEnded").s());
+        gm.setWinningTeam(item.get("winningTeam") == null ? null : item.get("winningTeam").s());
+        return gm;
     }
 }
