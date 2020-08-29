@@ -503,11 +503,11 @@ public class DatabaseServiceDynamo implements DatabaseService {
 	}
 
 	/**
-	 * 
 	 * @param playerInfo Player information
 	 * @param lobbyId Lobby UUID
+	 * @return
 	 */
-	public void playerJoinLobby(TokenInfo playerInfo, String lobbyId) {
+	public long playerJoinLobby(TokenInfo playerInfo, String lobbyId) {
 		// TODO check game status
 
 		// PutRequest assuming player is not already in lobby
@@ -529,14 +529,42 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			throw new DefaultInternalError();
 		}
 		
-		return;
+		// Build PK for lobby player count update
+		Map<String, AttributeValue> lobbyPk = buildPK(
+				String.format("GAME#%s", lobbyId),
+				"metadata"
+		);
+		
+		Map<String, AttributeValue> lobbyAttributeValues = new HashMap<>(Map.of(
+				":plusOne", AttributeValue.builder().n("1").build()
+		));
+		
+		// Update lobby player count
+        UpdateItemRequest updateLobbyRequest = UpdateItemRequest.builder()
+				.tableName(this.tableName)
+				.key(lobbyPk)
+				.updateExpression("SET playerCount = playerCount + :plusOne")
+				.conditionExpression("attribute_exists(playerCount)")
+				.expressionAttributeValues(lobbyAttributeValues)
+                .returnValues("UPDATED_NEW")
+				.build();
+        
+        UpdateItemResponse lobbyUpdateResponse;
+        try {
+        	lobbyUpdateResponse = this.dbClient.updateItem(updateLobbyRequest);
+		} catch (Exception e) {
+        	throw new DefaultInternalError();
+		}
+        
+        return Long.parseLong(lobbyUpdateResponse.attributes().get("playerCount").n());
 	}
 
 	/**
 	 * @param playerInfo Player information
 	 * @param lobbyId Lobby UUID
+	 * @return
 	 */
-	public void playerLeaveLobby(TokenInfo playerInfo, String lobbyId) {
+	public long playerLeaveLobby(TokenInfo playerInfo, String lobbyId) {
 		// Todo check game status 
 	    Map<String, AttributeValue> key = buildPK(
 	    		String.format("GAME#%s", lobbyId),
@@ -554,8 +582,35 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		} catch (Exception e) {
 			throw new DefaultInternalError();
 		}
+
+		// PK for lobby
+		Map<String, AttributeValue> lobbyMetadatapk = buildPK(
+				String.format("GAME#%s", lobbyId),
+				"metadata"
+		);
 		
-		return;
+		// Attribute Values
+		HashMap<String, AttributeValue> lobbyPlayerAttributeValues = new HashMap<>(Map.of(
+				":minusOne", AttributeValue.builder().n("1").build()
+		));
+
+		// Update lobby player count
+		UpdateItemRequest lobbyPlayerUpdateRequest = UpdateItemRequest.builder()
+				.tableName(this.tableName)
+				.updateExpression("SET playerCount = playerCount - :minusOne")
+				.expressionAttributeValues(lobbyPlayerAttributeValues)
+				.key(lobbyMetadatapk)
+				.returnValues("UPDATED_NEW")
+				.build();
+
+		UpdateItemResponse lobbyPlayerUpdateResponse;
+		try {
+			lobbyPlayerUpdateResponse = this.dbClient.updateItem(lobbyPlayerUpdateRequest);
+		} catch (Exception e) {
+			throw new DefaultInternalError();
+		}
+
+		return Long.parseLong(lobbyPlayerUpdateResponse.attributes().get("playerCount").n());
 	}
 	
 	public void playerSetReady(TokenInfo playerInfo, String lobbyId) {

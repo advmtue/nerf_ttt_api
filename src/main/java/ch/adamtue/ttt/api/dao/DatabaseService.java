@@ -83,15 +83,17 @@ public interface DatabaseService {
 	 * Player joins a lobby
 	 * @param playerInfo Player information
 	 * @param lobbyId Lobby UUID
+	 * @return New player count
 	 */
-	void playerJoinLobby(TokenInfo playerInfo, String lobbyId);
+	long playerJoinLobby(TokenInfo playerInfo, String lobbyId);
 	
 	/**
 	 * Player leaves a lobby
 	 * @param playerInfo Player information
 	 * @param lobbyId Lobby UUID
+	 * @return New player count   
 	 */
-	void playerLeaveLobby(TokenInfo playerInfo, String lobbyId);
+	long playerLeaveLobby(TokenInfo playerInfo, String lobbyId);
 
 	/**
 	 * Player sets their status to ready

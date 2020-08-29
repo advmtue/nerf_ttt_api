@@ -2,6 +2,7 @@ package ch.adamtue.ttt.api.controller;
 
 import ch.adamtue.ttt.api.dao.DatabaseService;
 import ch.adamtue.ttt.api.dto.request.CreateLobbyRequest;
+import ch.adamtue.ttt.api.dto.response.LobbyPlayerChange;
 import ch.adamtue.ttt.api.model.GameMetadata;
 import ch.adamtue.ttt.api.model.LobbyPlayer;
 import ch.adamtue.ttt.api.model.TokenInfo;
@@ -15,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -45,25 +47,29 @@ public class LobbyController {
         return gameInfo;
     }
 
+    // Get Lobby list
     @GetMapping("/lobby")
     public List<GameMetadata> getLobbyList() {
         return this.databaseService.getLobbyList();
     }
-    
+
+    // Get lobby metadata
     @GetMapping("/lobby/{lobbyId}")
     public GameMetadata getIndividualLobby(@PathVariable String lobbyId) {
         return this.databaseService.getLobby(lobbyId);
     }
-    
+
+    // Get player list
     @GetMapping("/lobby/{lobbyId}/players")
     public List<LobbyPlayer> getLobbyPlayers(@PathVariable String lobbyId) {
         return this.databaseService.getLobbyPlayers(lobbyId);
     }
-    
+
+    // Player Join
     @PatchMapping("/lobby/{lobbyId}/join")
     public boolean playerJoinLobby(@AuthenticationPrincipal UsernamePasswordAuthenticationToken userPrincipal, @PathVariable String lobbyId) {
         TokenInfo userInfo = (TokenInfo) userPrincipal.getPrincipal();
-        this.databaseService.playerJoinLobby(userInfo, lobbyId);
+        long newPlayerCount = this.databaseService.playerJoinLobby(userInfo, lobbyId);
         
         // Send to listening channels
         LobbyPlayer newPlayer = new LobbyPlayer();
@@ -72,16 +78,17 @@ public class LobbyController {
         newPlayer.setDisplayName(userInfo.getName());
         this.messageTemplate.convertAndSend(String.format("/topic/lobby/%s/playerjoin", lobbyId), newPlayer);
 
-        GameMetadata gameData = this.databaseService.getLobby(lobbyId);
-        this.messageTemplate.convertAndSend("/topic/lobbies/updated", gameData);
+        LobbyPlayerChange newInfo = new LobbyPlayerChange(lobbyId, newPlayerCount);
+        this.messageTemplate.convertAndSend("/topic/lobbies/updated", newInfo);
 
         return true;
     }
-    
+
+    // Player leave
     @PatchMapping("/lobby/{lobbyId}/leave")
     public boolean playerLeaveLobby(@AuthenticationPrincipal UsernamePasswordAuthenticationToken userPrincipal, @PathVariable String lobbyId) {
         TokenInfo userInfo = (TokenInfo) userPrincipal.getPrincipal();
-        this.databaseService.playerLeaveLobby(userInfo, lobbyId);
+        long newPlayerCount = this.databaseService.playerLeaveLobby(userInfo, lobbyId);
 
         // Send to listening channels
         LobbyPlayer newPlayer = new LobbyPlayer();
@@ -90,19 +97,19 @@ public class LobbyController {
         newPlayer.setDisplayName(userInfo.getName());
         this.messageTemplate.convertAndSend(String.format("/topic/lobby/%s/playerleave", lobbyId), newPlayer);
 
-        GameMetadata gameData = this.databaseService.getLobby(lobbyId);
-        this.messageTemplate.convertAndSend("/topic/lobbies/updated", gameData);
+        LobbyPlayerChange newInfo = new LobbyPlayerChange(lobbyId, newPlayerCount);
+        this.messageTemplate.convertAndSend("/topic/lobbies/updated", newInfo);
 
         return true;
     }
 
+    // Player ready
     @PatchMapping("/lobby/{lobbyId}/ready")
     public boolean playerSetReady(@AuthenticationPrincipal UsernamePasswordAuthenticationToken userPrincipal, @PathVariable String lobbyId) {
         TokenInfo userInfo = (TokenInfo) userPrincipal.getPrincipal();
         this.databaseService.playerSetReady(userInfo, lobbyId);
         
         // Send to listening channels
-        // Todo new dto
         LobbyPlayer newPlayer = new LobbyPlayer();
         newPlayer.setReady(true);
         newPlayer.setPlayerId(userInfo.getUserId());
@@ -111,14 +118,14 @@ public class LobbyController {
         
         return true;
     }
-    
+
+    // Player unready
     @PatchMapping("/lobby/{lobbyId}/unready")
     public boolean playerSetUnready(@AuthenticationPrincipal UsernamePasswordAuthenticationToken userPrincipal, @PathVariable String lobbyId) {
         TokenInfo userInfo = (TokenInfo) userPrincipal.getPrincipal();
         this.databaseService.playerSetUnready(userInfo, lobbyId);
 
         // Send to listening channels
-        // TODO new dto
         LobbyPlayer newPlayer = new LobbyPlayer();
         newPlayer.setReady(false);
         newPlayer.setPlayerId(userInfo.getUserId());
