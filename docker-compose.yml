@@ -5,8 +5,6 @@ services:
         build: .
         image: ttt-api
         container_name: ttt-api
-        ports:
-            - "7000:8080"
         env_file: .env
 
 networks:
