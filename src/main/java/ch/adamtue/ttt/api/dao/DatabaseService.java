@@ -5,10 +5,9 @@ import ch.adamtue.ttt.api.dto.request.ChangeUserRoleRequest;
 import ch.adamtue.ttt.api.dto.request.CreateLobbyRequest;
 import ch.adamtue.ttt.api.dto.request.CreateUserRequest;
 import ch.adamtue.ttt.api.model.GameMetadata;
-import ch.adamtue.ttt.api.model.LobbyPlayer;
+import ch.adamtue.ttt.api.model.GamePlayer;
 import ch.adamtue.ttt.api.model.TokenInfo;
 import ch.adamtue.ttt.api.model.UserLogin;
-import com.sun.el.parser.Token;
 
 import java.util.List;
 
@@ -77,7 +76,7 @@ public interface DatabaseService {
 	 * @param lobbyId Lobby UUID
 	 * @return Player list
 	 */
-	List<LobbyPlayer> getLobbyPlayers(String lobbyId);
+	List<GamePlayer> getLobbyPlayers(String lobbyId);
 
 	/**
 	 * Player joins a lobby
@@ -108,4 +107,12 @@ public interface DatabaseService {
 	 * @param lobbyId Lobby UUID
 	 */
 	void playerSetUnready(TokenInfo playerInfo, String lobbyId);
+
+	/**
+	 * Attempt to start the lobby
+	 *
+	 * @param playerInfo Calling player information
+	 * @param lobbyId Lobby UUID
+	 */
+	void startLobby(TokenInfo playerInfo, String lobbyId);
 }

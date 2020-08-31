@@ -1,19 +1,15 @@
 package ch.adamtue.ttt.api.controller;
 
+import ch.adamtue.ttt.api.exception.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import ch.adamtue.ttt.api.dto.response.HandledErrorResponse;
-import ch.adamtue.ttt.api.exception.DefaultInternalError;
-import ch.adamtue.ttt.api.exception.FailedPasswordHashException;
-import ch.adamtue.ttt.api.exception.InvalidCredentialsException;
-import ch.adamtue.ttt.api.exception.PasswordNotChangeableException;
-import ch.adamtue.ttt.api.exception.UserAlreadyExistsException;
 
 @ControllerAdvice
-public class AuthControllerAdvice {
+public class ControllerExceptionAdvice {
 
 	@ExceptionHandler({InvalidCredentialsException.class})
 	public ResponseEntity<HandledErrorResponse> handle(InvalidCredentialsException e) {
@@ -57,6 +53,46 @@ public class AuthControllerAdvice {
 				"Password is not currently changeable.",
 				"ERR_PASSWORD_NOT_CHANGEABLE"
 				);
+
+		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	@ExceptionHandler({GameIsNotLobbyException.class})
+	public ResponseEntity<HandledErrorResponse> handle(GameIsNotLobbyException e) {
+		HandledErrorResponse err = new HandledErrorResponse(
+				"Requested game is not in lobby phase",
+				"ERR_GAME_NOT_LOBBY"
+		);
+
+		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	@ExceptionHandler({NotEnoughPlayersException.class})
+	public ResponseEntity<HandledErrorResponse> handle(NotEnoughPlayersException e) {
+		HandledErrorResponse err = new HandledErrorResponse(
+				"Not enough players to start game",
+				"ERR_PLAYER_COUNT_NOT_MET"
+		);
+
+		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	@ExceptionHandler({PlayerNotGameOwnerException.class})
+	public ResponseEntity<HandledErrorResponse> handle(PlayerNotGameOwnerException e) {
+		HandledErrorResponse err = new HandledErrorResponse(
+				"Only the game owner can perform this action",
+				"ERR_PLAYER_NOT_OWNER"
+		);
+
+		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	@ExceptionHandler({PlayersNotReadyException.class})
+	public ResponseEntity<HandledErrorResponse> handle(PlayersNotReadyException e) {
+		HandledErrorResponse err = new HandledErrorResponse(
+				"Not all players are ready",
+				"ERR_PLAYERS_NOT_READY"
+		);
 
 		return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
 	}

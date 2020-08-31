@@ -1,27 +1,40 @@
 package ch.adamtue.ttt.api.model;
 
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+
+import java.util.HashMap;
+import java.util.Map;
+
 public class UserLogin {
-	private String PK;
-	private String SK;
+    private String username;
 	private String userId;
 	private byte[] passwordHash;
 	private byte[] passwordSalt;
 	private boolean passwordChangeOnLogin;
 	private String passwordResetValue;
 
+	/**
+	 * Create a PK from a given username
+	 *
+	 * @param username Username
+	 * @return Primary key for userlogin lookups
+	 */
+	public static Map<String, AttributeValue> createPK(String username) {
+		return new HashMap<String, AttributeValue>(Map.of(
+				"pk", createHashKey(username),
+				"sk", createRangeKey()
+		));
+	}
+	
+	public static AttributeValue createHashKey(String username) {
+		return AttributeValue.builder().s(String.format("LOGIN#%s", username)).build();
+	}
+	
+	public static AttributeValue createRangeKey() {
+		return AttributeValue.builder().s("login").build();
+	}
+
 	public UserLogin() {}
-
-	// PK
-	public String getPK() { return PK; }
-	public void setPK(String pK) {
-		PK = pK;
-	}
-
-	// SK
-	public String getSK() { return SK; }
-	public void setSK(String sK) {
-		SK = sK;
-	}
 
 	// UserId
 	public String getUserId() { return userId; }
@@ -51,6 +64,14 @@ public class UserLogin {
 	public String getPasswordResetValue() { return passwordResetValue; }
 	public void setPasswordResetValue(String passwordResetValue) {
 		this.passwordResetValue = passwordResetValue;
+	}
+
+	// Username
+	public String getUsername() {
+		return username;
+	}
+	public void setUsername(String username) {
+		this.username = username;
 	}
 }
 

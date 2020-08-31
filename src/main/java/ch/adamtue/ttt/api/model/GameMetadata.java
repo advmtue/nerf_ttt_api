@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
+import javax.management.Attribute;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,6 +22,38 @@ public class GameMetadata {
     private String ownerName;
     private String ownerId;
 
+    /**
+     * Create a DynamoDB PK for a GameMetadata object
+     *
+     * @param gameId Game UUID
+     * @return GameMetaData PK
+     */
+    public static Map<String, AttributeValue> createPK(String gameId) {
+        return new HashMap<String, AttributeValue>(Map.of(
+                "pk", createHashKey(gameId),
+                "sk", createRangeKey()
+        ));
+    }
+
+    /**
+     * Create DynamoDB hash key for Game Metadata
+     *
+     * @param gameId Game UUID
+     * @return DynamoDB hash key
+     */
+    public static AttributeValue createHashKey(String gameId) {
+        return AttributeValue.builder().s(String.format("GAME#%s", gameId)).build();
+    }
+
+    /**
+     * Create DynamoDB range key for Game Metadata
+     *
+     * @return DynamoDB range key
+     */
+    public static AttributeValue createRangeKey() {
+        return AttributeValue.builder().s("metadata").build();
+    }
+    
     // DynamoDB
     @JsonIgnore
     public String getPk() { return String.format("GAME#%s", this.gameId); }
@@ -94,11 +127,22 @@ public class GameMetadata {
         gm.setName(item.get("lobbyName").s());
         gm.setPlayerCount(Long.parseLong(item.get("playerCount").n()));
 
-        // Optional post-lobby phase
-        gm.setDateLaunched(item.get("dateLaunched") == null ? null : item.get("dateLaunched").s());
-        gm.setDateStarted(item.get("dateStarted") == null ? null : item.get("dateStarted").s());
-        gm.setDateEnded(item.get("dateEnded") == null ? null : item.get("dateEnded").s());
-        gm.setWinningTeam(item.get("winningTeam") == null ? null : item.get("winningTeam").s());
+        if (item.containsKey("dateLaunched")) { 
+            gm.setDateLaunched(item.get("dateLaunched").s());
+        }
+        
+        if (item.containsKey("dateStarted")) {
+            gm.setDateStarted(item.get("dateStarted").s());
+        }
+        
+        if (item.containsKey("dateEnded")) {
+            gm.setDateEnded(item.get("dateEnded").s());
+        }
+        
+        if (item.containsKey("winningTeam")) {
+            gm.setWinningTeam(item.get("winningTeam").s());
+        }
+
         return gm;
     }
 }

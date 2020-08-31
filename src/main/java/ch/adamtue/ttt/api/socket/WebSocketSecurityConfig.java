@@ -8,12 +8,11 @@ import org.springframework.security.config.annotation.web.socket.AbstractSecurit
 @Configuration
 public class WebSocketSecurityConfig extends AbstractSecurityWebSocketMessageBrokerConfigurer {
 
-    // TODO : Cleanup
     @Override
     protected void configureInbound(MessageSecurityMetadataSourceRegistry messages) {
         messages
                 .simpSubscribeDestMatchers("/topic/**").permitAll()
-                .simpTypeMatchers(SimpMessageType.CONNECT, SimpMessageType.DISCONNECT).permitAll()
+                .simpTypeMatchers(SimpMessageType.CONNECT, SimpMessageType.DISCONNECT, SimpMessageType.UNSUBSCRIBE).permitAll()
                 .anyMessage().denyAll();
     }
 

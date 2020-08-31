@@ -1,5 +1,10 @@
 package ch.adamtue.ttt.api.model;
 
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+
+import java.util.HashMap;
+import java.util.Map;
+
 public class UserProfile {
 	private String pk;
 	private String sk;
@@ -12,15 +17,36 @@ public class UserProfile {
 	private String accessRole;
 	private long joinDate;
 
-	// Accessor / Mutator
-	public String getPK() { return pk; }
-	public void setPK(String pk) {
-		this.pk = pk;
+	/**
+	 * Create a PK for user profile
+	 *
+	 * @param userId User UUID
+	 * @return User Profile PK
+	 */
+	public static Map<String, AttributeValue> createPK(String userId) {
+		return new HashMap<String, AttributeValue>(Map.of(
+				"pk", createHashKey(userId),
+				"sk", createRangeKey()
+		));
 	}
 
-	public String getSK() { return sk; }
-	public void setSK(String sk) {
-		this.sk = sk;
+	/**
+	 * Create a DynamoDB hash key for User Profile
+	 *
+	 * @param userId User UUID
+	 * @return DynamoDB Hash key for User Profile
+	 */
+	public static AttributeValue createHashKey(String userId) {
+		return AttributeValue.builder().s(String.format("USER#%s", userId)).build();
+	}
+
+	/**
+	 * Create a DynamoDB range key for User Profile
+	 *
+	 * @return DynamoDB range key for User Profile
+	 */
+	public static AttributeValue createRangeKey() {
+		return AttributeValue.builder().s("profile").build();
 	}
 
 	public String getUser() { return user; }

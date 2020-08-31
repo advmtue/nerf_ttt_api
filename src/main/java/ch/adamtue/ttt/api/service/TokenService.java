@@ -23,7 +23,7 @@ public class TokenService {
 	final JWTVerifier verifier;
 
 	public TokenService() {
-		this.algorithm = Algorithm.HMAC256("secretChangeMeLater");
+		this.algorithm = Algorithm.HMAC256("secretChangeMeLater"); // TODO : Change this
 		this.verifier = JWT.require(this.algorithm).build();
 	}
 

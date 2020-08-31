@@ -21,7 +21,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Override
 	public void registerStompEndpoints(StompEndpointRegistry registry) {
 		registry.addEndpoint("/socket")
-			.setAllowedOrigins("*"); // TODO(advmtue) Update or use a config
+			.setAllowedOrigins("http://localhost:4200", "https://api.ttt.adamtue.ch");
 	}
 
 	/**
