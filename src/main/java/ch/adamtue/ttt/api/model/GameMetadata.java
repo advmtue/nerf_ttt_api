@@ -53,7 +53,43 @@ public class GameMetadata {
     public static AttributeValue createRangeKey() {
         return AttributeValue.builder().s("metadata").build();
     }
-    
+
+    /**
+     * Marshall a Query/GetItem result
+     *
+     * @param item Query/GetItem request
+     * @return {GameMetadata} Game metadata
+     */
+    public static GameMetadata createFromQuery(Map<String, AttributeValue> item) {
+        // Always exist
+        GameMetadata gm = new GameMetadata();
+        gm.setOwnerName(item.get("ownerName").s());
+        gm.setOwnerId(item.get("ownerId").s());
+        gm.setGameId(item.get("pk").s().split("#")[1]); // TODO : Cleanup
+        gm.setDateCreated(item.get("GSI1-SK").s());
+        gm.setStatus(item.get("GSI1-PK").s());
+        gm.setName(item.get("lobbyName").s());
+        gm.setPlayerCount(Long.parseLong(item.get("playerCount").n()));
+
+        if (item.containsKey("dateLaunched")) {
+            gm.setDateLaunched(item.get("dateLaunched").s());
+        }
+
+        if (item.containsKey("dateStarted")) {
+            gm.setDateStarted(item.get("dateStarted").s());
+        }
+
+        if (item.containsKey("dateEnded")) {
+            gm.setDateEnded(item.get("dateEnded").s());
+        }
+
+        if (item.containsKey("winningTeam")) {
+            gm.setWinningTeam(item.get("winningTeam").s());
+        }
+
+        return gm;
+    }
+
     // DynamoDB
     @JsonIgnore
     public String getPk() { return String.format("GAME#%s", this.gameId); }
@@ -116,33 +152,4 @@ public class GameMetadata {
         this.ownerId = ownerId;
     }
     
-    public static GameMetadata createFromQuery(Map<String, AttributeValue> item) {
-        // Always exist
-        GameMetadata gm = new GameMetadata();
-        gm.setOwnerName(item.get("ownerName").s());
-        gm.setOwnerId(item.get("ownerId").s());
-        gm.setGameId(item.get("pk").s().split("#")[1]); // TODO : Cleanup
-        gm.setDateCreated(item.get("GSI1-SK").s());
-        gm.setStatus(item.get("GSI1-PK").s());
-        gm.setName(item.get("lobbyName").s());
-        gm.setPlayerCount(Long.parseLong(item.get("playerCount").n()));
-
-        if (item.containsKey("dateLaunched")) { 
-            gm.setDateLaunched(item.get("dateLaunched").s());
-        }
-        
-        if (item.containsKey("dateStarted")) {
-            gm.setDateStarted(item.get("dateStarted").s());
-        }
-        
-        if (item.containsKey("dateEnded")) {
-            gm.setDateEnded(item.get("dateEnded").s());
-        }
-        
-        if (item.containsKey("winningTeam")) {
-            gm.setWinningTeam(item.get("winningTeam").s());
-        }
-
-        return gm;
-    }
 }
