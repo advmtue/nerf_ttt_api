@@ -115,11 +115,4 @@ public interface DatabaseService {
 	 * @param lobbyId Lobby UUID
 	 */
 	void startLobby(TokenInfo playerInfo, String lobbyId);
-
-	/**
-	 * Pull player list for game
-	 *
-	 * @param lobbyId Lobby UUID
-	 */
-	List<GamePlayer> getGamePlayersPregame(String lobbyId);
 }

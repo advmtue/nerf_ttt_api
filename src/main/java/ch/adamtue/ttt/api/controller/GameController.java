@@ -40,11 +40,14 @@ public class GameController {
 
         // Cache miss
         if (players == null) {
-            players = this.dbService.getGamePlayersPregame(lobbyId);
+            players = this.dbService.getLobbyPlayers(lobbyId);
 
             // Populate cache
             this.gameCache.put(lobbyId, players);
         }
+
+        // TODO Set all players to alive and filter roles
+        // Maybe add this functionality to the object itself
 
         return players;
     }
