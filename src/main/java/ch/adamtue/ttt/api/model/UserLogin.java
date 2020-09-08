@@ -25,11 +25,22 @@ public class UserLogin {
 				"sk", createRangeKey()
 		));
 	}
-	
+
+	/**
+	 * Create DynamoDB hash key for UserLogin
+	 *
+	 * @param username Username
+	 * @return DynamoDB hash key
+	 */
 	public static AttributeValue createHashKey(String username) {
 		return AttributeValue.builder().s(String.format("LOGIN#%s", username)).build();
 	}
-	
+
+	/**
+	 * Create DynamoDB range key for UserLogin
+	 *
+	 * @return DynamoDB range key
+	 */
 	public static AttributeValue createRangeKey() {
 		return AttributeValue.builder().s("login").build();
 	}
