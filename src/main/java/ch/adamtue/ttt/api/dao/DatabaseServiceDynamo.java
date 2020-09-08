@@ -5,6 +5,7 @@ import java.util.*;
 import ch.adamtue.ttt.api.dto.request.CreateLobbyRequest;
 import ch.adamtue.ttt.api.exception.*;
 import ch.adamtue.ttt.api.model.*;
+import ch.adamtue.ttt.api.service.GameStateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -647,7 +648,7 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			throw new PlayerNotGameOwnerException();
 		}
 
-		// Game is not in lobby phase
+		// Fail - Game is not in lobby phase
 		if (!gameData.getStatus().equals("LOBBY")) {
 			throw new GameIsNotLobbyException();
 		}
@@ -656,14 +657,36 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		List<GamePlayer> players = this.getLobbyPlayers(lobbyId);
 		
 		for (GamePlayer player : players) {
+			// Fail - Any player is not ready
 			if (!player.isReady()) {
 				throw new PlayersNotReadyException();
 			}
 		}
 
-		// Minimum of 3 players
+		// Fail - Doesn't meet minimum players
 		if (players.size() < 3) {
 			throw new NotEnoughPlayersException();
+		}
+
+		// Let players know the game is LAUNCHING
+		this.messageTemplate.convertAndSend(
+				String.format("/topic/lobby/%s/status", lobbyId),
+				Collections.singletonMap("status", "LAUNCHING")
+		);
+
+		// Assign roles
+		// Note players is empty after this call
+		List<GamePlayer> assignedRoles = GameStateService.assignRoles(players);
+
+		// Create a batch write request
+		BatchWriteItemRequest playerUpdateRequest = GameStateService.createWriteRequest(assignedRoles, lobbyId, this.tableName);
+
+		try {
+			BatchWriteItemResponse res = this.dbClient.batchWriteItem(playerUpdateRequest);
+		} catch (Exception e) {
+			// TODO retry with exponential backoff
+		    e.printStackTrace();
+			throw new DefaultInternalError();
 		}
 	}
 
@@ -671,15 +694,15 @@ public class DatabaseServiceDynamo implements DatabaseService {
 	public List<GamePlayer> getGamePlayersPregame(String lobbyId) {
 		// Build attribute values
 		Map<String, AttributeValue> attrV = new HashMap<>(Map.of(
-			":pk", GameMetadata.createHashKey(lobbyId),
-			":lobbyPlayer", GamePlayer.createEmptyRangeKey()
+				":pk", GameMetadata.createHashKey(lobbyId),
+				":lobbyPlayer", GamePlayer.createEmptyRangeKey()
 		));
 
 		// Build the query
 		QueryRequest request = QueryRequest.builder()
 				.tableName(this.tableName)
-                .expressionAttributeValues(attrV)
-                .keyConditionExpression("pk = :pk AND begins_with(sk, :lobbyPlayer)")
+				.expressionAttributeValues(attrV)
+				.keyConditionExpression("pk = :pk AND begins_with(sk, :lobbyPlayer)")
 				.build();
 
 		QueryResponse response;
@@ -687,9 +710,9 @@ public class DatabaseServiceDynamo implements DatabaseService {
 			response = this.dbClient.query(request);
 		} catch (Exception e) {
 			// Todo better exception handling
-            e.printStackTrace();
-            this.logger.error(e.toString());
-            throw new DefaultInternalError(); // yeet
+			e.printStackTrace();
+			this.logger.error(e.toString());
+			throw new DefaultInternalError(); // yeet
 		}
 
 		// Turn player query into a list of players
@@ -700,4 +723,5 @@ public class DatabaseServiceDynamo implements DatabaseService {
 
 		return players;
 	}
+
 }
