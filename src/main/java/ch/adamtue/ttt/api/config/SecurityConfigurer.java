@@ -34,6 +34,7 @@ public class SecurityConfigurer extends WebSecurityConfigurerAdapter {
 			.antMatchers("/lobby", "POST").hasAuthority("admin")
 			.antMatchers("/lobby", "GET").authenticated()
 			.antMatchers("/lobby/**/*", "GET").authenticated()
+			.antMatchers("/game/**/*", "GET").authenticated()
 			.antMatchers("/lobby/**/*", "PATCH").authenticated()
 			.anyRequest().denyAll()
 			.and().sessionManagement()

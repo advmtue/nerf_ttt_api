@@ -50,6 +50,15 @@ public class GamePlayer {
         return AttributeValue.builder().s(String.format("PLAYER#%s", playerId)).build();
     }
 
+    /**
+     * Construct a range key for a large query space
+     *
+     * @return DynamoDB range key for any game player
+     */
+    public static AttributeValue createEmptyRangeKey() {
+        return AttributeValue.builder().s("PLAYER#").build();
+    }
+
     // Player ID
     public String getPlayerId() {
         return playerId;

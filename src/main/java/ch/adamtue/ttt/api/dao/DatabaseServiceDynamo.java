@@ -26,6 +26,7 @@ public class DatabaseServiceDynamo implements DatabaseService {
 	@Autowired
 	PasswordService pwService;
 
+	// TODO This should be moved out of DAO and into business logic
 	@Autowired
 	SimpMessagingTemplate messageTemplate;
 
@@ -664,6 +665,39 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		if (players.size() < 3) {
 			throw new NotEnoughPlayersException();
 		}
+	}
 
+	@Override
+	public List<GamePlayer> getGamePlayersPregame(String lobbyId) {
+		// Build attribute values
+		Map<String, AttributeValue> attrV = new HashMap<>(Map.of(
+			":pk", GameMetadata.createHashKey(lobbyId),
+			":lobbyPlayer", GamePlayer.createEmptyRangeKey()
+		));
+
+		// Build the query
+		QueryRequest request = QueryRequest.builder()
+				.tableName(this.tableName)
+                .expressionAttributeValues(attrV)
+                .keyConditionExpression("pk = :pk AND begins_with(sk, :lobbyPlayer)")
+				.build();
+
+		QueryResponse response;
+		try {
+			response = this.dbClient.query(request);
+		} catch (Exception e) {
+			// Todo better exception handling
+            e.printStackTrace();
+            this.logger.error(e.toString());
+            throw new DefaultInternalError(); // yeet
+		}
+
+		// Turn player query into a list of players
+		List<GamePlayer> players = new ArrayList<>();
+		for (Map<String, AttributeValue> player : response.items()) {
+			players.add(GamePlayer.createFromQuery(player));
+		}
+
+		return players;
 	}
 }
