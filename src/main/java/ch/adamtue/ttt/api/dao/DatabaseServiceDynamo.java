@@ -5,6 +5,7 @@ import java.util.*;
 import ch.adamtue.ttt.api.dto.request.CreateLobbyRequest;
 import ch.adamtue.ttt.api.exception.*;
 import ch.adamtue.ttt.api.model.*;
+import ch.adamtue.ttt.api.service.GameStateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -634,19 +635,12 @@ public class DatabaseServiceDynamo implements DatabaseService {
 	public void startLobby(TokenInfo playerInfo, String lobbyId) {
 		GameMetadata gameData = this.getLobby(lobbyId);
 
-		// TODO Remove after debug
-		// Assign roles
-		this.messageTemplate.convertAndSend(
-				String.format("/topic/lobby/%s/status", lobbyId),
-				Collections.singletonMap("status", "LAUNCHING")
-		);
-
-		// Calling player isn't owner
+		// Fail - Calling player isn't owner
 		if (!gameData.getOwnerId().equals(playerInfo.getUserId())) {
 			throw new PlayerNotGameOwnerException();
 		}
 
-		// Game is not in lobby phase
+		// Fail - Game is not in lobby phase
 		if (!gameData.getStatus().equals("LOBBY")) {
 			throw new GameIsNotLobbyException();
 		}
@@ -655,15 +649,36 @@ public class DatabaseServiceDynamo implements DatabaseService {
 		List<GamePlayer> players = this.getLobbyPlayers(lobbyId);
 		
 		for (GamePlayer player : players) {
+			// Fail - Any player is not ready
 			if (!player.isReady()) {
 				throw new PlayersNotReadyException();
 			}
 		}
 
-		// Minimum of 3 players
+		// Fail - Doesn't meet minimum players
 		if (players.size() < 3) {
 			throw new NotEnoughPlayersException();
 		}
 
+		// Let players know the game is LAUNCHING
+		this.messageTemplate.convertAndSend(
+				String.format("/topic/lobby/%s/status", lobbyId),
+				Collections.singletonMap("status", "LAUNCHING")
+		);
+
+		// Assign roles
+		// Note players is empty after this call
+		List<GamePlayer> assignedRoles = GameStateService.assignRoles(players);
+
+		// Create a batch write request
+		BatchWriteItemRequest playerUpdateRequest = GameStateService.createWriteRequest(assignedRoles, lobbyId, this.tableName);
+		
+		try {
+			BatchWriteItemResponse res = this.dbClient.batchWriteItem(playerUpdateRequest);
+		} catch (Exception e) {
+			// TODO retry with exponential backoff
+		    e.printStackTrace();
+			throw new DefaultInternalError();
+		}
 	}
 }
